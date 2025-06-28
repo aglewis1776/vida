@@ -1,49 +1,41 @@
-<!-- src/routes/+layout.svelte -->
-
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { writable } from 'svelte/store';
   import { db } from '$lib/db';
   import { v4 as uuidv4 } from 'uuid';
   import type { UserProfile } from '$lib/types';
-  
-  // Import global styles
-  import '../app.css';
-
-  // A Svelte store to hold the current user profile.
-  // This makes it accessible to any other component in the app.
-  export const userProfile = writable<UserProfile | null>(null);
-
-  onMount(async () => {
-    // This code runs only in the browser after the component has mounted.
+  import Header from '$lib/components/Header.svelte';
+  import BottomNav from '$lib/components/BottomNav.svelte';
+  import { userProfile } from '$lib/stores';
+  import '../app.css'; // Import global Tailwind CSS here
+onMount(async () => {
+    console.log('Layout onMount: Starting profile check...');
     try {
-      // 1. Check if a profile already exists in the local database.
       const existingProfile = await db.profiles.toCollection().first();
+      console.log('Layout onMount: Checked for existing profile. Found:', existingProfile);
 
       if (existingProfile) {
-        // 2. If it exists, set it in our store.
         userProfile.set(existingProfile);
-        console.log('Existing profile loaded:', existingProfile);
+        console.log('Layout onMount: Set existing profile in store.');
       } else {
-        // 3. If it does NOT exist, create a new one.
+        console.log('Layout onMount: No existing profile, creating new one.');
         const newProfile: UserProfile = {
-          id: uuidv4(), // Generate a new unique ID
+          id: uuidv4(),
           createdAt: new Date().toISOString(),
         };
-        
-        // Save the new profile to the database.
         await db.profiles.add(newProfile);
-        // Set it in our store.
         userProfile.set(newProfile);
-        console.log('No profile found. New profile created:', newProfile);
+        console.log('Layout onMount: Created and set new profile in store.');
       }
     } catch (error) {
-      console.error('Failed to initialize user profile:', error);
+      console.error('Layout onMount: An error occurred!', error);
     }
   });
 </script>
 
-<!-- The <slot /> component is where SvelteKit will render the content of the current page (like your +page.svelte) -->
-<div class="font-sans antialiased text-gray-900">
-  <slot />
+<div class="font-sans antialiased text-gray-900 bg-gray-50 min-h-screen">
+  <Header />
+  <main class="p-4 pb-32">
+    <slot />
+  </main>
+  <BottomNav />
 </div>

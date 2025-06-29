@@ -7,19 +7,15 @@
 	import { writable } from 'svelte/store';
 
 	import AddBillModal from '$lib/components/AddBillModal.svelte';
-	import ConfirmationModal from '$lib/components/ConfirmationModal.svelte';
 	import Button from '@smui/button';
 	import Fab from '@smui/fab';
-	import Dialog from '@smui/dialog';
 
 	interface BillWithInstallment extends Bill {
 		installmentInfo?: string;
 	}
 
 	let showAddBillModal = false;
-	let showDeleteConfirm = false;
 	let billToEdit: Bill | null = null;
-	let billToDelete: Bill | null = null;
 
 	const showAll = writable(false);
 
@@ -134,29 +130,6 @@
 
 	function handleBillSaved() { console.log('Bill saved.'); }
 	
-	function promptForDelete(bill: Bill) {
-		billToDelete = bill;
-		showDeleteConfirm = true;
-	}
-
-	async function handleDeleteConfirm() {
-		if (!billToDelete) return;
-		await db.bills.delete(billToDelete.id);
-		closeDeleteConfirm();
-	}
-
-	function closeDeleteConfirm() {
-		showDeleteConfirm = false;
-		billToDelete = null;
-	}
-    
-    // NEW: Placeholder function for paying with Pix
-    function handlePayWithPix(bill: Bill) {
-        console.log('Pagar com Pix clicked for:', bill.name);
-        // We will implement the actual payment logic here in a future step
-        alert(`Funcionalidade "Pagar com Pix" para ${bill.name} ainda não implementada.`);
-    }
-
 	function getDay(dateString: string): string {
 		const date = new Date(dateString + 'T00:00:00');
 		return date.toLocaleDateString('pt-BR', { day: 'numeric' });
@@ -357,14 +330,3 @@
 </div>
 
 <AddBillModal bind:showModal={showAddBillModal} {billToEdit} onClose={closeAddBillModal} onBillSaved={handleBillSaved} />
-
-<Dialog bind:open={showDeleteConfirm}>
-  <h2 class="mdc-dialog__title">Confirmar Exclusão</h2>
-  <div class="mdc-dialog__content">
-    Tem certeza que deseja excluir esta conta? Esta ação não pode ser desfeita.
-  </div>
-  <div class="mdc-dialog__actions">
-    <Button variant="text" on:click={closeDeleteConfirm}>Cancelar</Button>
-    <Button variant="raised" color="error" on:click={handleDeleteConfirm}>Excluir</Button>
-  </div>
-</Dialog>

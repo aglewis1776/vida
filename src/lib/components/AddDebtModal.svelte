@@ -52,8 +52,8 @@
 	}
 
 	async function handleSaveDebt() {
-		if (!name || !lender || !totalBalance || !priority) {
-			errorMessage = 'Todos os campos, exceto juros e plano de pagamento, são obrigatórios.';
+		if (!name || !lender || totalBalance === null || totalBalance < 0 || !priority) {
+			errorMessage = 'Todos os campos são obrigatórios e o saldo não pode ser negativo.';
 			return;
 		}
 
@@ -175,7 +175,7 @@
 			</div>
 			<div>
 				<label for="total-balance" class="block text-sm font-medium text-gray-700">Saldo Total (R$)</label>
-				<input type="number" id="total-balance" bind:value={totalBalance} class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="15000.00" step="0.01" />
+				<input type="number" id="total-balance" bind:value={totalBalance} class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="15000.00" step="0.01" min="0" />
 			</div>
 			<div>
 				<label for="interest-rate" class="block text-sm font-medium text-gray-700">Taxa de Juros Anual (%) (Opcional)</label>

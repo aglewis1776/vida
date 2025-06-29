@@ -28,6 +28,16 @@
 			return;
 		}
 
+		const newCashBalance =
+			transactionType === 'income'
+				? $userProfile.cashBalance + amount
+				: $userProfile.cashBalance - amount;
+
+		if (newCashBalance < 0) {
+			errorMessage = 'O saldo em dinheiro não pode ficar negativo.';
+			return;
+		}
+
 		try {
 			const newTransaction: Transaction = {
 				id: uuidv4(),
@@ -38,18 +48,11 @@
 				date: new Date().toISOString()
 			};
 			await db.transactions.add(newTransaction);
-
-			const newCashBalance =
-				transactionType === 'income'
-					? $userProfile.cashBalance + amount
-					: $userProfile.cashBalance - amount;
-
 			await db.profiles.update($userProfile.id, { cashBalance: newCashBalance });
 			userProfile.update((profile) => {
 				if (profile) profile.cashBalance = newCashBalance;
 				return profile;
 			});
-
 			closeModal();
 		} catch (error) {
 			errorMessage = 'Falha ao salvar a transação.';
@@ -69,18 +72,25 @@
 	<div class="fixed inset-0 z-40 flex items-center justify-center bg-gray-900 bg-opacity-75" on:click={closeModal} role="dialog" aria-modal="true">
 		<div class="relative w-full max-w-lg rounded-lg bg-white p-6 shadow-xl" on:click|stopPropagation>
 			<h3 class="text-xl font-semibold text-gray-800">{title}</h3>
-			
 			<form on:submit|preventDefault={handleSaveTransaction} class="mt-4 space-y-4">
 				<div>
-					<label for="transaction-amount" class="block text-sm font-medium text-gray-700">Valor (R$)</label>
-					<input
-						type="number"
-						id="transaction-amount"
-						bind:value={amount}
-						class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-						placeholder="25.50"
-						step="0.01"
-					/>
+					<label for="transaction-amount" class="block text-sm font-medium text-gray-700">
+						Valor (R$)
+					</label>
+					<div class="relative flex items-center">
+						{#if transactionType === 'expense'}
+							<span class="absolute left-3 text-red-500 text-lg select-none">−</span>
+						{/if}
+						<input
+							type="number"
+							id="transaction-amount"
+							bind:value={amount}
+							class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pl-7"
+							placeholder={transactionType === 'income' ? '25.50' : 'Ex: 25.50'}
+							step="0.01"
+							min="0"
+						/>
+					</div>
 				</div>
 				<div>
 					<label for="transaction-description" class="block text-sm font-medium text-gray-700">Descrição</label>
@@ -92,11 +102,9 @@
 						placeholder={transactionType === 'income' ? 'Ex: Venda do dia' : 'Ex: Almoço'}
 					/>
 				</div>
-
 				{#if errorMessage}
 					<p class="text-sm text-red-600">{errorMessage}</p>
 				{/if}
-
 				<div class="mt-6 flex justify-end space-x-3">
 					<button type="button" on:click={closeModal} class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">Cancelar</button>
 					<button type="submit" class="rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">Salvar</button>

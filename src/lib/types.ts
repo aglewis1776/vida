@@ -3,6 +3,9 @@ export interface UserProfile {
 	id: string;
 	email?: string;
 	createdAt: string;
+	// NEW: Added fields for cash and pix balance
+	cashBalance?: number;
+	pixBalance?: number;
 }
 
 export interface Bill {
@@ -14,7 +17,6 @@ export interface Bill {
 	dueDate: string;
 	isPaid: boolean;
 	debtId?: string;
-	// NEW: Added an optional category field for bills
 	category?:
 		| 'Moradia' // Housing
 		| 'Transporte' // Transportation
@@ -58,6 +60,6 @@ export interface Debt {
 	totalInstallments?: number;
 	installmentsPaid?: number;
 	paymentDueDate?: number;
-	isArchived?: boolean;
+isArchived?: boolean;
 	payments: { date: string; amount: number }[];
 }

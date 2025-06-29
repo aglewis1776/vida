@@ -1,7 +1,10 @@
-<!-- src/lib/components/Header.svelte -->
 <script lang="ts">
-	// We'll add logic later to calculate the real balance
-	const dailyBalance = 150.0;
+	import { userProfile } from '$lib/stores';
+
+	// This is a reactive variable.
+	// Whenever the userProfile store changes (e.g., cash or pix balance is updated),
+	// this `totalBalance` will automatically be recalculated.
+	$: totalBalance = ($userProfile?.cashBalance ?? 0) + ($userProfile?.pixBalance ?? 0);
 </script>
 
 <header
@@ -11,10 +14,9 @@
 		<h1 class="text-xl font-bold text-gray-800">Vida Financeira</h1>
 	</div>
 	<div class="text-right">
-		<span class="text-xs text-gray-500">Saldo do Dia</span>
-		<!-- UPDATED: Added 'text-3xl' to increase the font size -->
+		<span class="text-xs text-gray-500">Saldo Total</span>
 		<p class="font-bold text-green-600 text-3xl">
-			R$ {dailyBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+			R$ {totalBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
 		</p>
 	</div>
 </header>

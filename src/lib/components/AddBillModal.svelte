@@ -5,20 +5,47 @@
 	import { db } from '$lib/db';
 	import type { Bill } from '$lib/types';
 
-	// --- Component Properties (Props) ---
 	export let showModal: boolean = false;
-	// NEW: Callback functions passed from the parent
+	export let billToEdit: Bill | null = null;
 	export let onClose: () => void;
 	export let onBillSaved: () => void;
 
-	// --- Form Fields ---
 	let name: string = '';
 	let recipient: string = '';
 	let amount: number | null = null;
 	let dueDate: string = '';
+	// NEW: Add a variable for the bill category
+	let category: Bill['category'] = 'Outros';
 	let errorMessage: string = '';
+	let title = 'Adicionar Nova Conta';
 
-	// This function now directly calls the 'onClose' prop from the parent
+	// NEW: Define the list of categories for the dropdown
+	const billCategories: Bill['category'][] = [
+		'Moradia',
+		'Transporte',
+		'Alimentação',
+		'Saúde',
+		'Educação',
+		'Lazer',
+		'Impostos e Taxas',
+		'Outros'
+	];
+
+	$: {
+		if (showModal && billToEdit) {
+			title = 'Editar Conta';
+			name = billToEdit.name;
+			recipient = billToEdit.recipient;
+			amount = billToEdit.amount;
+			dueDate = billToEdit.dueDate;
+			// NEW: Set the category when editing
+			category = billToEdit.category ?? 'Outros';
+		} else {
+			title = 'Adicionar Nova Conta';
+			resetForm();
+		}
+	}
+
 	function closeModal() {
 		onClose();
 	}
@@ -41,21 +68,23 @@
 		}
 
 		try {
-			const newBill: Bill = {
-				id: uuidv4(),
-				profileId,
-				name,
-				recipient,
-				amount,
-				dueDate,
-				isPaid: false
-			};
-			await db.bills.add(newBill);
+			// NEW: Include the category in the data to be saved
+			const billData = { name, recipient, amount, dueDate, category };
+
+			if (billToEdit) {
+				await db.bills.update(billToEdit.id, billData);
+			} else {
+				const newBill: Bill = {
+					id: uuidv4(),
+					profileId,
+					...billData,
+					isPaid: false
+				};
+				await db.bills.add(newBill);
+			}
 			
-			// NEW: Call the onBillSaved function from the parent
 			onBillSaved();
-			resetForm();
-			closeModal(); // Also calls the onClose function
+			closeModal();
 		} catch (error) {
 			errorMessage = 'Falha ao salvar a conta. Tente novamente.';
 			console.error('Failed to save bill:', error);
@@ -67,18 +96,29 @@
 		recipient = '';
 		amount = null;
 		dueDate = '';
+		category = 'Outros'; // Reset category to default
 		errorMessage = '';
+		billToEdit = null;
 	}
 </script>
 
 {#if showModal}
 	<div class="fixed inset-0 z-40 flex items-center justify-center bg-gray-900 bg-opacity-75" on:click={closeModal} role="dialog" aria-modal="true">
 		<div class="relative w-full max-w-lg rounded-lg bg-white p-6 shadow-xl" on:click|stopPropagation>
-			<h3 class="text-xl font-semibold text-gray-800">Adicionar Nova Conta</h3>
+			<h3 class="text-xl font-semibold text-gray-800">{title}</h3>
 			<form on:submit|preventDefault={handleSaveBill} class="mt-4 space-y-4">
 				<div>
 					<label for="name" class="block text-sm font-medium text-gray-700">Nome da Conta</label>
 					<input type="text" id="name" bind:value={name} class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="Ex: Conta de Luz" />
+				</div>
+				<!-- NEW: Category dropdown added to the form -->
+				<div>
+					<label for="bill-category" class="block text-sm font-medium text-gray-700">Categoria</label>
+					<select id="bill-category" bind:value={category} class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+						{#each billCategories as cat}
+							<option value={cat}>{cat}</option>
+						{/each}
+					</select>
 				</div>
 				<div>
 					<label for="recipient" class="block text-sm font-medium text-gray-700">Para quem pagar (Destinatário)</label>

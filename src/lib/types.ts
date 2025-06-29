@@ -1,37 +1,48 @@
 // src/lib/types.ts
-
 export interface UserProfile {
-  id: string; // Unique ID (UUID for local, Firebase UID for synced)
-  email?: string;
-  createdAt: string; // ISO 8601 date string
+	id: string;
+	email?: string;
+	createdAt: string;
 }
 
 export interface Bill {
-  id: string; // Unique ID (e.g., UUID)
-  profileId: string; // Foreign key to UserProfile
-  name: string; // e.g., "Conta de Luz"
-  recipient: string; // e.g., "Neoenergia"
-  amount: number; // e.g., 85.00
-  dueDate: string; // ISO 8601 date string
-  isPaid: boolean;
+	id: string;
+	profileId: string;
+	name: string;
+	recipient: string;
+	amount: number;
+	dueDate: string;
+	isPaid: boolean;
 }
 
 export interface Transaction {
-  id: string;
-  profileId: string; // Foreign key to UserProfile
-  type: 'income' | 'expense';
-  amount: number;
-  description: string;
-  date: string; // ISO 8601 date string
+	id: string;
+	profileId: string;
+	type: 'income' | 'expense';
+	amount: number;
+	description: string;
+	date: string;
 }
 
 export interface Debt {
-  id: string;
-  profileId: string; // Foreign key to UserProfile
-  name: string; // e.g., "Cartão de Crédito"
-  lender: string; // e.g., "Itaú"
-  totalBalance: number;
-  interestRate?: number; // Annual percentage rate (APR)
-  priority: number; // User-defined priority for sorting
-  payments: { date: string; amount: number }[];
+	id: string;
+	profileId: string;
+	name: string;
+	lender: string;
+	totalBalance: number;
+	interestRate?: number;
+	priority: number;
+	// UPDATED: Expanded the list of possible categories
+	category?:
+		| 'Cartão de Crédito'
+		| 'Empréstimo Pessoal'
+		| 'Cheque Especial'
+		| 'Financiamento de Veículo'
+		| 'Financiamento Imobiliário'
+		| 'Contas Atrasadas'
+		| 'Crediário / Carnê'
+		| 'Agiota / Empréstimo Informal'
+		| 'Família / Amigos'
+		| 'Outros';
+	payments: { date: string; amount: number }[];
 }

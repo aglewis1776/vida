@@ -48,8 +48,13 @@
 <BillList title="Vence Amanhã" bills={tomorrowBills} />
 <BillList title="Próximos 7 Dias" bills={next7DaysBills} />
 
+{#if showModal}
+  <AddBillModal onclose={() => (showModal = false)} />
+{/if}
+
 <div class="fixed bottom-24 right-5 space-y-3">
   <button
+    onclick={() => (showModal = true)}
     class="w-14 h-14 flex items-center justify-center bg-red-500 text-white rounded-full shadow-lg"
   >
     <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -62,7 +67,6 @@
     </svg>
   </button>
   <button
-    onclick={() => (showModal = true)}
     class="w-14 h-14 flex items-center justify-center bg-green-500 text-white rounded-full shadow-lg"
   >
     <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">

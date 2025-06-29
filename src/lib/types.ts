@@ -13,10 +13,12 @@ export interface Bill {
 	amount: number;
 	dueDate: string;
 	isPaid: boolean;
+	// NEW: Link a bill back to a parent debt
+	debtId?: string;
 }
 
 export interface Transaction {
-	id: string;
+	id:string;
 	profileId: string;
 	type: 'income' | 'expense';
 	amount: number;
@@ -32,7 +34,6 @@ export interface Debt {
 	totalBalance: number;
 	interestRate?: number;
 	priority: number;
-	// UPDATED: Expanded the list of possible categories
 	category?:
 		| 'Cartão de Crédito'
 		| 'Empréstimo Pessoal'
@@ -44,5 +45,12 @@ export interface Debt {
 		| 'Agiota / Empréstimo Informal'
 		| 'Família / Amigos'
 		| 'Outros';
+	// --- NEW: Payment Plan Fields ---
+	paymentAmount?: number;
+	totalInstallments?: number;
+	installmentsPaid?: number;
+	paymentDueDate?: number; // Day of the month (e.g., 15)
+	isArchived?: boolean;
+	// ---
 	payments: { date: string; amount: number }[];
 }

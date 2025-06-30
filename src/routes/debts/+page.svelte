@@ -1,8 +1,8 @@
 <!-- src/routes/debts/+page.svelte -->
 <script lang="ts">
 	import { userProfile } from '$lib/stores';
-	import { db } from '$lib/db';
-	import type { Debt } from '$lib/types';
+	import { db, generateBillsForDebtWithInstallments } from '$lib/db';
+	import type { Debt, RecurringBill } from '$lib/types';
 	import { liveQuery } from 'dexie';
 
 	import AddDebtModal from '$lib/components/AddDebtModal.svelte';
@@ -12,6 +12,8 @@
 	let debtToEdit: Debt | null = null;
 	let showDeleteConfirm = false;
 	let debtToDelete: Debt | null = null;
+
+	let showRecurring = false;
 
 	let debts = liveQuery<Debt[]>(async () => {
 		const profile = $userProfile;
@@ -24,6 +26,12 @@
 			.where('profileId').equals(profile.id)
 			.and(debt => debt.isArchived !== true)
 			.sortBy('priority');
+	});
+
+	let recurringBills = liveQuery<RecurringBill[]>(async () => {
+		const profile = $userProfile;
+		if (!profile) return [];
+		return await db.recurringBills.where('profileId').equals(profile.id).and(bill => bill.isActive !== false).sortBy('dueDay');
 	});
 
 	function openAddModal() {
@@ -41,8 +49,16 @@
 		debtToEdit = null;
 	}
 
-	function handleDebtSaved() {
+	async function handleDebtSaved(event?: CustomEvent) {
+		// Called after a debt is saved (created or edited)
 		console.log('Debt was saved. The list has been updated.');
+		// If a new debt with installments was just created, generate bills for it
+		if (event && event.detail && event.detail.debt) {
+			const debt: Debt = event.detail.debt;
+			if (debt.totalInstallments && debt.paymentAmount) {
+				await generateBillsForDebtWithInstallments(debt);
+			}
+		}
 	}
 
 	function promptForDelete(debt: Debt) {
@@ -83,50 +99,47 @@
 
 <div class="space-y-4">
 	<div class="flex items-center justify-between">
-		<h2 class="text-lg font-bold text-gray-700">Minhas Dívidas</h2>
-		<span class="text-sm font-medium text-gray-500">{$debts?.length || 0} dívidas</span>
+		<!-- Removed "Minhas Dívidas & Contas Recorrentes" heading as requested -->
+		<span class="text-sm font-medium text-gray-500">{showRecurring ? ($recurringBills?.length || 0) + ' contas' : ($debts?.length || 0) + ' dívidas'}</span>
 	</div>
 
-	<div class="space-y-4">
-		{#if $debts && $debts.length > 0}
-			{#each $debts as debt (debt.id)}
-				<div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-					{#if debt.category}
-						<div class="px-4 py-1 text-left font-semibold text-white {getCategoryColor(debt.category)}">{debt.category}</div>
-					{/if}
-					
-					<div class="p-4">
-						<div class="flex items-start justify-between">
-							<div class="flex-grow">
-								<div class="flex items-center space-x-3">
-									<div class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-gray-200">
-										<span class="text-sm font-bold text-gray-700">{debt.priority}</span>
-									</div>
-									<p class="text-lg font-bold text-gray-800">{debt.name}</p>
+	{#if !showRecurring}
+		<!-- Dívidas list (existing code) -->
+		<div class="space-y-4">
+			{#if $debts && $debts.length > 0}
+				{#each $debts as debt (debt.id)}
+					<div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow">
+						{#if debt.category}
+							<div class="flex items-center gap-2 px-4 py-1 text-left font-semibold text-white {getCategoryColor(debt.category)}">
+								{#if debt.priority}
+									<span class="flex items-center justify-center w-6 h-6 rounded-full bg-white text-gray-700 text-xs font-bold mr-2 border border-gray-300">
+										{debt.priority}
+									</span>
+								{/if}
+								<span>{debt.category}</span>
+							</div>
+						{/if}
+						<div class="p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+							<div class="flex-1 min-w-0">
+								<div class="flex items-center gap-2 mb-1">
+									<p class="text-lg font-bold text-gray-800 truncate">{debt.name}</p>
 								</div>
-								<div class="mt-2 pl-9">
-									<p class="text-sm text-gray-600">Credor: {debt.lender}</p>
+								<div class="pl-7 space-y-1">
+									<p class="text-sm text-gray-600 flex items-center gap-1">Credor: <span class="font-medium">{debt.lender}</span></p>
+									{#if typeof debt.totalInstallments === 'number' && typeof debt.installmentsPaid === 'number'}
+										<p class="text-xs text-blue-600 font-semibold flex items-center gap-1">{debt.totalInstallments - debt.installmentsPaid} parcela{debt.totalInstallments - debt.installmentsPaid === 1 ? '' : 's'} restante{debt.totalInstallments - debt.installmentsPaid === 1 ? '' : 's'}</p>
+									{/if}
 									{#if debt.interestRate}
-										<p class="text-xs text-gray-500">Juros: {debt.interestRate}% ao ano</p>
+										<p class="text-xs text-gray-500 flex items-center gap-1">Juros: {debt.interestRate}% ao ano</p>
 									{/if}
 								</div>
 							</div>
-							<div class="flex flex-col items-end pl-4">
-								<p class="text-xl font-bold text-gray-800">
-									R$ {debt.totalBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-								</p>
-								<!-- NEW: Display payment plan info -->
+							<div class="flex flex-col items-end gap-2 min-w-[120px]">
+								<p class="text-xl font-bold text-gray-800 flex items-center gap-1">R$ {debt.totalBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
 								{#if debt.paymentAmount && debt.totalInstallments}
-									<div class="mt-1 text-right">
-										<p class="text-sm font-medium text-gray-700">
-											R$ {debt.paymentAmount.toLocaleString('pt-BR', {minimumFractionDigits: 2})} / mês
-										</p>
-										<p class="text-xs text-gray-500">
-											Parcela {debt.installmentsPaid || 0} de {debt.totalInstallments}
-										</p>
-									</div>
+									<p class="text-sm font-medium text-gray-700 flex items-center gap-1">R$ {debt.paymentAmount.toLocaleString('pt-BR', {minimumFractionDigits: 2})} / mês</p>
 								{/if}
-								<div class="mt-2 flex items-center space-x-2">
+								<div class="flex items-center space-x-2 mt-1">
 									<button on:click={() => openEditModal(debt)} class="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-blue-600" aria-label="Editar Dívida">
 										<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>
 									</button>
@@ -137,19 +150,52 @@
 							</div>
 						</div>
 					</div>
+				{/each}
+			{:else}
+				<div class="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+					<p class="text-gray-500">Nenhuma dívida cadastrada.</p>
+					<p class="mt-1 text-sm text-gray-400">Clique no botão '+' para adicionar sua primeira dívida.</p>
 				</div>
-			{/each}
-		{:else}
-			<div class="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8 text-center">
-				<p class="text-gray-500">Nenhuma dívida cadastrada.</p>
-				<p class="mt-1 text-sm text-gray-400">Clique no botão '+' para adicionar sua primeira dívida.</p>
-			</div>
-		{/if}
-	</div>
+			{/if}
+		</div>
+	{:else}
+		<!-- Recurring bills list -->
+		<div class="space-y-4">
+			{#if $recurringBills && $recurringBills.length > 0}
+				{#each $recurringBills as bill (bill.id)}
+					<div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow">
+						<div class="flex items-center gap-2 px-4 py-1 text-left font-semibold text-green-700">
+							<span>{bill.category}</span>
+						</div>
+						<div class="p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+							<div class="flex-1 min-w-0">
+								<div class="flex items-center gap-2 mb-1">
+									<p class="text-lg font-bold text-gray-800 truncate">{bill.name}</p>
+								</div>
+								<div class="pl-7 space-y-1">
+									<p class="text-sm text-gray-600 flex items-center gap-1">Destinatário: <span class="font-medium">{bill.recipient}</span></p>
+									<p class="text-xs text-gray-500 flex items-center gap-1">Vencimento: dia {bill.dueDay}</p>
+								</div>
+							</div>
+							<div class="flex flex-col items-end gap-2 min-w-[120px]">
+								<p class="text-xl font-bold text-gray-800 flex items-center gap-1">R$ {bill.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+							</div>
+						</div>
+					</div>
+				{/each}
+			{:else}
+				<div class="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+					<p class="text-gray-500">Nenhuma conta recorrente cadastrada.</p>
+					<p class="mt-1 text-sm text-gray-400">Clique no botão '+' para adicionar sua primeira conta recorrente.</p>
+				</div>
+			{/if}
+		</div>
+	{/if}
 </div>
 
+<!-- Floating Action Button for adding new debt or recurring bill -->
 <div class="fixed bottom-20 right-4 z-20">
-	<button on:click={openAddModal} class="flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" aria-label="Adicionar Nova Dívida">
+	<button on:click={openAddModal} class="flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" aria-label="Adicionar Nova Dívida ou Conta Recorrente">
 		<svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
 	</button>
 </div>

@@ -15,7 +15,7 @@
 	let dueDate: string = '';
 	let category: Bill['category'] = 'Outros';
 	let errorMessage: string = '';
-	let title = 'Adicionar Nova Conta';
+	let title = 'Nova Conta Avulsa'; // Default title in Portuguese
 
 	const billCategories: Bill['category'][] = [
 		'Moradia', 'Transporte', 'Alimentação', 'Saúde',
@@ -31,8 +31,7 @@
 		dueDate = new Date(billToEdit.dueDate).toISOString().split('T')[0];
 		category = billToEdit.category ?? 'Outros';
 	} else {
-		title = 'Adicionar Nova Conta';
-		// It's better to reset the form when it closes
+		title = 'Nova Conta Avulsa';
 	}
 
 	function closeModal() {

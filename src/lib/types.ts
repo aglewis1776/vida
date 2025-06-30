@@ -63,3 +63,36 @@ export interface Debt {
 isArchived?: boolean;
 	payments: { date: string; amount: number }[];
 }
+
+export interface BillHistory extends Bill {
+	paidAt: string;
+	paymentMethod?: string;
+	amountPaid?: number;
+	note?: string;
+	installmentInfo?: string;
+}
+
+export type Recurrence = 'daily' | 'weekly' | 'biweekly' | 'monthly';
+
+export interface RecurringBill {
+	id: string;
+	profileId: string;
+	name: string;
+	recipient: string;
+	amount: number;
+	category:
+		| 'Energia'
+		| 'Água'
+		| 'Gás'
+		| 'Aluguel'
+		| 'Internet'
+		| 'Telefone'
+		| 'TV'
+		| 'Condomínio'
+		| 'Outros';
+	dueDay: number; // Day of month bill is due
+	isActive: boolean;
+	lastPaidDate?: string; // ISO date string
+	recurrence?: Recurrence; // NEW: how often the bill recurs
+	// Optionally, add more fields as needed
+}

@@ -19,10 +19,6 @@
 			errorMessage = 'Por favor, insira um valor válido.';
 			return;
 		}
-		if (!description) {
-			errorMessage = 'Por favor, adicione uma descrição.';
-			return;
-		}
 		if (!$userProfile || typeof $userProfile.cashBalance !== 'number') {
 			errorMessage = 'Erro: Perfil de usuário ou saldo não encontrado.';
 			return;
@@ -93,7 +89,7 @@
 					</div>
 				</div>
 				<div>
-					<label for="transaction-description" class="block text-sm font-medium text-gray-700">Descrição</label>
+					<label for="transaction-description" class="block text-sm font-medium text-gray-700">Descrição <span class="text-gray-400">(opcional)</span></label>
 					<input
 						type="text"
 						id="transaction-description"

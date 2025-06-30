@@ -67,17 +67,15 @@
 		}
 
 		// Save the debt first in its own try/catch block
-		let savedDebtId: string;
+		let savedDebt: Debt;
 		try {
 			const debtData = { name, lender, totalBalance, interestRate: interestRate ?? undefined, priority, category, paymentAmount: paymentAmount ?? undefined, totalInstallments: totalInstallments ?? undefined, installmentsPaid: installmentsPaid ?? 0, paymentDueDate: paymentDueDate ?? undefined, isArchived: false };
-			
 			if (debtToEdit) {
 				await db.debts.update(debtToEdit.id, debtData);
-				savedDebtId = debtToEdit.id;
+				savedDebt = { ...debtToEdit, ...debtData };
 			} else {
-				const newDebt: Debt = { id: uuidv4(), profileId, ...debtData, payments: [] };
-				await db.debts.add(newDebt);
-				savedDebtId = newDebt.id;
+				savedDebt = { id: uuidv4(), profileId, ...debtData, payments: [] };
+				await db.debts.add(savedDebt);
 			}
 		} catch (debtError) {
 			errorMessage = 'Falha ao salvar a dívida principal. Tente novamente.';
@@ -85,54 +83,9 @@
 			return; // Stop execution if we can't even save the debt
 		}
 
-		// Generate bills in a separate, non-blocking try/catch
-		if (paymentAmount && totalInstallments && paymentDueDate) {
-			try {
-				// --- THE FIX: Changed the query to be more explicit ---
-				await db.bills
-					.where('debtId').equals(savedDebtId)
-					.and(bill => bill.isPaid === false)
-					.delete();
+		// Remove direct bill-generation logic here
 
-				const billsToAdd: Bill[] = [];
-				const today = new Date();
-				today.setHours(0, 0, 0, 0);
-
-				let loopStartDate = new Date(today.getFullYear(), today.getMonth(), paymentDueDate);
-				if (loopStartDate < today) {
-					loopStartDate.setMonth(loopStartDate.getMonth() + 1);
-				}
-				
-				const remainingInstallments = totalInstallments - (installmentsPaid || 0);
-
-				for (let i = 0; i < remainingInstallments; i++) {
-					const installmentDate = new Date(loopStartDate);
-					installmentDate.setMonth(loopStartDate.getMonth() + i);
-
-					const bill: Bill = {
-						id: uuidv4(),
-						profileId: profileId,
-						name: `${name} - Parcela ${(installmentsPaid || 0) + i + 1}`,
-						recipient: lender,
-						amount: paymentAmount,
-						dueDate: installmentDate.toISOString().split('T')[0],
-						isPaid: false,
-						debtId: savedDebtId
-					};
-					billsToAdd.push(bill);
-				}
-
-				if (billsToAdd.length > 0) {
-					await db.bills.bulkAdd(billsToAdd);
-				}
-
-			} catch (billError) {
-				// Log the error but don't stop the UI from closing
-				console.error('NON-CRITICAL: Failed to auto-generate bills, but the debt was saved.', billError);
-			}
-		}
-		
-		onDebtSaved();
+		onDebtSaved({ detail: { debt: savedDebt } });
 		closeModal();
 	}
 

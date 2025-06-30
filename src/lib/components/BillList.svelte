@@ -22,3 +22,5 @@
     <p class="text-sm text-gray-500">Nenhuma conta para este período.</p>
   {/if}
 </div>
+
+<!-- No changes needed for BillList.svelte. It already receives a list of bills and renders BillItem for each. -->

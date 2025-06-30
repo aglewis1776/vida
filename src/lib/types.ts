@@ -26,6 +26,14 @@ export interface Bill {
 		| 'Lazer' // Leisure
 		| 'Impostos e Taxas' // Taxes and Fees
 		| 'Outros'; // Others
+	// --- Added fields for payment and installments ---
+	paidAt?: string | null;
+	paymentMethod?: string;
+	amountPaid?: number;
+	note?: string;
+	installmentInfo?: string;
+	// NEW: Late fee fields
+	lateFeeAmount?: number; // Valor da multa por atraso
 }
 
 export interface Transaction {
@@ -62,14 +70,8 @@ export interface Debt {
 	paymentDueDate?: number;
 isArchived?: boolean;
 	payments: { date: string; amount: number }[];
-}
-
-export interface BillHistory extends Bill {
-	paidAt: string;
-	paymentMethod?: string;
-	amountPaid?: number;
-	note?: string;
-	installmentInfo?: string;
+	// NEW: Late fee fields
+	lateFeeAmount?: number; // Valor da multa por atraso
 }
 
 export type Recurrence = 'daily' | 'weekly' | 'biweekly' | 'monthly';

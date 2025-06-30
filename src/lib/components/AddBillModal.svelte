@@ -13,13 +13,15 @@
 	let recipient: string = '';
 	let amount: number | null = null;
 	let dueDate: string = '';
-	let category: Bill['category'] = 'Outros';
+	let category: Bill['category'] = 'Moradia';
+	let lateFee: number | null = null;
 	let errorMessage: string = '';
 	let title = 'Nova Conta Avulsa'; // Default title in Portuguese
 
 	const billCategories: Bill['category'][] = [
 		'Moradia', 'Transporte', 'Alimentação', 'Saúde',
-		'Educação', 'Lazer', 'Impostos e Taxas', 'Outros'
+		'Educação', 'Lazer', 'Impostos e Taxas',
+		'Outros'
 	];
 
 	// This reactive block correctly pre-fills the form for editing
@@ -29,9 +31,12 @@
 		recipient = billToEdit.recipient;
 		amount = billToEdit.amount;
 		dueDate = new Date(billToEdit.dueDate).toISOString().split('T')[0];
-		category = billToEdit.category ?? 'Outros';
+		category = billToEdit.category ?? 'Moradia';
+		lateFee = billToEdit.lateFee ?? null;
 	} else {
 		title = 'Nova Conta Avulsa';
+		lateFee = null;
+		category = 'Moradia';
 	}
 
 	function closeModal() {
@@ -50,7 +55,7 @@
 		}
 
 		try {
-			const billData = { name, recipient, amount, dueDate, category, isPaid: false };
+			const billData = { name, recipient, amount, dueDate, category, isPaid: false, lateFee };
 
 			if (billToEdit) {
 				await db.bills.update(billToEdit.id, billData);
@@ -70,7 +75,8 @@
 		recipient = '';
 		amount = null;
 		dueDate = '';
-		category = 'Outros';
+		category = 'Moradia';
+		lateFee = null;
 		errorMessage = '';
 		billToEdit = null;
 	}
@@ -109,6 +115,11 @@
             <div>
                 <label for="dueDate" class="block text-sm font-medium text-gray-700">Data de Vencimento</label>
                 <input type="date" id="dueDate" bind:value={dueDate} class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" />
+            </div>
+
+            <div>
+                <label for="lateFee" class="block text-sm font-medium text-gray-700">Multa por atraso (R$)</label>
+                <input type="number" id="lateFee" bind:value={lateFee} class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="0.00" step="0.01" min="0" />
             </div>
             
             {#if errorMessage}

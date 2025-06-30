@@ -2,7 +2,6 @@
 import { createEventDispatcher } from 'svelte';
 import { onMount } from 'svelte';
 import type { RecurringBill } from '$lib/types';
-import Button from '@smui/button';
 
 export let showModal: boolean;
 export let onClose: () => void;
@@ -110,8 +109,8 @@ onMount(() => {
           </select>
         </div>
         <div class="flex justify-end gap-2 mt-4">
-          <Button type="button" variant="outlined" color="secondary" on:click={close}>Cancelar</Button>
-          <Button type="submit" variant="raised" color="primary">Salvar</Button>
+          <button type="button" class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2" on:click={close}>Cancelar</button>
+          <button type="submit" class="rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">Salvar</button>
         </div>
       </form>
     </div>

@@ -7,20 +7,16 @@ export class VidaDB extends Dexie {
 	bills!: Table<Bill>;
 	transactions!: Table<Transaction>;
 	debts!: Table<Debt>;
-	billHistory!: Table<import('./types').BillHistory>;
 	recurringBills!: Table<RecurringBill>;
 
 	constructor() {
 		super('vidaDB');
-		// UPDATED: Incremented version number and added a compound index
-		this.version(4).stores({
+		// UPDATED: Incremented version number and removed billHistory
+		this.version(7).stores({
 			profiles: 'id',
-			// This new compound index '[debtId+isPaid]' allows us to efficiently query
-			// for bills that belong to a specific debt and have a specific paid status.
-			bills: 'id, profileId, dueDate, [debtId+isPaid]',
+			bills: 'id, profileId, dueDate, isPaid, paidAt, [debtId+isPaid]',
 			transactions: 'id, profileId, date',
 			debts: 'id, profileId, priority',
-			billHistory: 'id, profileId, paidAt',
 			recurringBills: 'id, profileId, dueDay, isActive'
 		});
 
@@ -66,3 +62,4 @@ export async function generateBillsForDebtWithInstallments(debt: import('./types
 	}
 	await db.bills.bulkAdd(bills);
 }
+

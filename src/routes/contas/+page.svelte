@@ -1,17 +1,14 @@
 <script lang="ts">
 	import { userProfile } from '$lib/stores';
 	import { db } from '$lib/db';
-	import type { Bill, Debt, BillHistory, RecurringBill } from '$lib/types';
+	import type { Bill, Debt, RecurringBill } from '$lib/types';
 	import { liveQuery } from 'dexie';
 	import { addDays } from 'date-fns';
 	import { writable, get, readable } from 'svelte/store';
 
 	import AddBillModal from '$lib/components/AddBillModal.svelte';
-	import Button from '@smui/button';
-	import Fab from '@smui/fab';
 	import ConfirmationModal from '$lib/components/ConfirmationModal.svelte';
 	import PayBillModal from '$lib/components/PayBillModal.svelte';
-	import EditHistoryModal from '$lib/components/EditHistoryModal.svelte';
 	import AddRecurringBillModal from '$lib/components/AddRecurringBillModal.svelte';
 	import BillItem from '$lib/components/BillItem.svelte';
 
@@ -30,39 +27,29 @@
 
 	const showAll = writable(false);
 
-	// Change allBills to a writable store for Svelte reactivity
-	const allBills = writable<BillWithInstallment[]>([]);
-
-	$: if ($userProfile) {
-		(async () => {
-			const profile = $userProfile;
-			const today = new Date();
-			today.setHours(0, 0, 0, 0);
-			const limitDate = $showAll ? addDays(today, 90) : addDays(today, 45);
-			let collection = db.bills.where('profileId').equals(profile.id).and(bill => bill.isPaid === false);
-			collection = collection.filter(bill => {
-				const dueDate = new Date(bill.dueDate + 'T00:00:00');
-				return dueDate < today || (dueDate >= today && dueDate < limitDate);
-			});
-			const bills = await collection.sortBy('dueDate');
-			allBills.set(await Promise.all(
-				bills.map(async (bill) => {
-					if (bill.debtId) {
-						const debt = await db.debts.get(bill.debtId);
-						if (debt && debt.totalInstallments) {
-							const match = bill.name.match(/Parcela (\d+)/);
-							const currentInstallment = match ? match[1] : '?';
-							return {
-								...bill,
-								installmentInfo: `Parcela ${currentInstallment} de ${debt.totalInstallments}`
-							};
-						}
+	// Always load all unpaid bills for the user
+	const allBills = liveQuery<BillWithInstallment[]>(async () => {
+		const profile = get(userProfile);
+		if (!profile) return [];
+		let collection = db.bills.where('profileId').equals(profile.id).and(bill => bill.isPaid === false);
+		const bills = await collection.sortBy('dueDate');
+		return await Promise.all(
+			bills.map(async (bill) => {
+				if (bill.debtId) {
+					const debt = await db.debts.get(bill.debtId);
+					if (debt && debt.totalInstallments) {
+						const match = bill.name.match(/Parcela (\d+)/);
+						const currentInstallment = match ? match[1] : '?';
+						return {
+							...bill,
+							installmentInfo: `Parcela ${currentInstallment} de ${debt.totalInstallments}`
+						};
 					}
-					return bill;
-				})
-			));
-		})();
-	}
+				}
+				return bill;
+			})
+		);
+	});
 
 	// Recurring bills store
 	const recurringBills = liveQuery<RecurringBill[]>(async () => {
@@ -81,10 +68,11 @@
 		if ($allBills) {
 			const today = new Date();
 			today.setHours(0, 0, 0, 0);
-			const tomorrow = new Date(today);
-			tomorrow.setDate(today.getDate() + 1);
+			const limitDate = $showAll ? addDays(today, 90) : addDays(today, 45);
 			const sevenDaysFromNow = new Date(today);
 			sevenDaysFromNow.setDate(today.getDate() + 7);
+			const tomorrow = new Date(today);
+			tomorrow.setDate(today.getDate() + 1);
 
 			overdue = [];
 			dueToday = [];
@@ -94,16 +82,15 @@
 
 			for (const bill of $allBills) {
 				const dueDate = new Date(bill.dueDate + 'T00:00:00');
-
 				if (dueDate < today) {
 					overdue.push(bill);
 				} else if (dueDate.getTime() === today.getTime()) {
 					dueToday.push(bill);
 				} else if (dueDate.getTime() === tomorrow.getTime()) {
 					dueTomorrow.push(bill);
-				} else if (dueDate <= sevenDaysFromNow) {
+				} else if (dueDate > tomorrow && dueDate <= sevenDaysFromNow) {
 					next7Days.push(bill);
-				} else {
+				} else if (dueDate > sevenDaysFromNow && dueDate < limitDate) {
 					upcoming.push(bill);
 				}
 			}
@@ -174,11 +161,7 @@
 
 	async function handleDeleteConfirmed() {
 		if (billToDelete) {
-			// Archive the bill before deleting
-			await db.billHistory.add({
-				...billToDelete,
-				paidAt: new Date().toISOString()
-			});
+			// Just delete the bill, no archiving to billHistory
 			await db.bills.delete(billToDelete.id);
 			billToDelete = null;
 			showDeleteModal = false;
@@ -200,7 +183,8 @@
 	}
 	let paymentError: string | null = null;
 
-	async function handleBillPaid(event) {
+	// Bill payment logic: update bill as paid in-place
+	async function handleBillPaid(event: CustomEvent) {
 		const { bill, paymentMethod, amount, date, note } = event.detail;
 		paymentError = null;
 		const profile = $userProfile;
@@ -235,14 +219,14 @@
 			}
 		}
 
-		await db.billHistory.add({
-			...bill,
+		// Mark bill as paid in-place
+		await db.bills.update(bill.id, {
+			isPaid: true,
 			paidAt: date,
 			paymentMethod,
 			amountPaid: amount,
 			note
 		});
-		await db.bills.delete(bill.id);
 		showPayModal = false;
 		billToPay = null;
 	}
@@ -267,80 +251,21 @@
 
 	let view: 'active' | 'recurring' | 'history' = 'active';
 
-/*	function setView(newView: 'active' | 'recurring' | 'history') {
-	  view = newView;
-	  // When switching to 'active' view, always reset to 45 days
-	  if (newView === 'active') {
-		showAll.set(false);
-	  }
-	}
-*/
 	// Change from reactive assignment to top-level const for billHistory
-	const billHistory = liveQuery<BillHistory[]>(async () => {
+	const paidBills = liveQuery<Bill[]>(async () => {
 		const profile = get(userProfile);
 		if (!profile) return [];
-		return await db.billHistory.where('profileId').equals(profile.id).reverse().sortBy('paidAt');
+		return await db.bills.where('profileId').equals(profile.id).and(bill => bill.isPaid === true).reverse().sortBy('paidAt');
 	});
 
-	let showDeleteHistoryModal = false;
-	let historyBillToDelete: BillHistory | null = null;
-	let historyBillToEdit: BillHistory | null = null;
-
-	function promptForDeleteHistory(bill: BillHistory) {
-		historyBillToDelete = bill;
-		showDeleteHistoryModal = true;
-	}
-
-	async function handleDeleteHistoryConfirmed() {
-		if (historyBillToDelete) {
-			await db.billHistory.delete(historyBillToDelete.id);
-			historyBillToDelete = null;
-			showDeleteHistoryModal = false;
-		}
-	}
-
-	function handleDeleteHistoryCancelled() {
-		historyBillToDelete = null;
-		showDeleteHistoryModal = false;
-	}
-
-	function editHistoryBill(bill: BillHistory) {
-		historyBillToEdit = bill;
-		showEditHistoryModal = true;
-	}
-
-	function closeEditHistoryModal() {
-		showEditHistoryModal = false;
-		historyBillToEdit = null;
-	}
-
-	async function handleHistoryBillSaved(event) {
-		const updated = event.detail;
-		if (updated && updated.id) {
-			await db.billHistory.update(updated.id, {
-				note: updated.note,
-				paidAt: updated.paidAt,
-				amountPaid: updated.amountPaid
-			});
-		}
-		showEditHistoryModal = false;
-		historyBillToEdit = null;
-	}
-
-	// Força o tipo do objeto `bill` para `BillHistory` na função de edição
-	function editHistoryBillTyped(bill: BillHistory) {
-		editHistoryBill(bill);
-	}
-
-	let showEditHistoryModal = false;
+	let showAddRecurringBillModal = false;
+	let showRecurring = false;
 
 	function toggleRecurring(show: boolean) {
 	  showRecurring = show;
 	}
 
-	let showAddRecurringBillModal = false;
-
-	function handleRecurringBillSave(event) {
+	function handleRecurringBillSave(event: CustomEvent) {
 	  const bill = event.detail.bill;
 	  // Attach profileId from current user
 	  const profile = get(userProfile);
@@ -386,9 +311,9 @@
 		{#if !$allBills || $allBills.length === 0}
 			<div class="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8 text-center">
 				<p class="text-gray-500">Nenhuma conta cadastrada.</p>
-				<Button variant="raised" color="primary" on:click={openAddBillModal}>
+				<button class="rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 mt-4" on:click={openAddBillModal}>
 					Adicionar sua primeira conta
-				</Button>
+				</button>
 			</div>
 		{/if}
 
@@ -533,14 +458,14 @@
 	{#if view === 'history'}
 		<div class="space-y-4">
 			<h2 class="text-lg font-bold text-blue-700 mb-2">Histórico de Pagamentos</h2>
-			{#if $billHistory && $billHistory.length > 0}
-				{#each $billHistory as bill (bill.id)}
+			{#if $paidBills && $paidBills.length > 0}
+				{#each $paidBills as bill (bill.id)}
 					<div class="overflow-hidden rounded-lg bg-gray-50 shadow-sm border border-gray-200 text-xs">
 						<div class="h-1.5 {getCategoryColorClass(bill.category || 'Outros')}"></div>
 						<div class="flex items-center p-2">
 							<div class="flex h-10 w-10 flex-col items-center justify-center rounded-md bg-gray-200 text-gray-700">
-								<span class="text-base font-bold">{getDay(bill.dueDate || bill.paidAt)}</span>
-								<span class="text-[10px] font-semibold">{getMonthAbbr(bill.dueDate || bill.paidAt)}</span>
+								<span class="text-base font-bold">{getDay(bill.dueDate ?? bill.paidAt ?? '')}</span>
+								<span class="text-[10px] font-semibold">{getMonthAbbr(bill.dueDate ?? bill.paidAt ?? '')}</span>
 							</div>
 							<div class="ml-3 flex-grow">
 								<p class="font-semibold text-gray-800 truncate">{bill.name || '-'}</p>
@@ -556,14 +481,6 @@
 								{#if bill.installmentInfo}
 									<p class="text-gray-500">{bill.installmentInfo}</p>
 								{/if}
-								<div class="flex items-center space-x-2 mt-2 justify-end">
-									<button on:click={() => editHistoryBill(bill)} class="btn btn-xs btn-ghost btn-circle" title="Editar">
-										<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>
-									</button>
-									<button on:click={() => promptForDeleteHistory(bill)} class="btn btn-xs btn-ghost btn-circle" title="Excluir">
-										<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
-									</button>
-								</div>
 							</div>
 						</div>
 					</div>
@@ -607,19 +524,6 @@
     on:pay={handleBillPaid}
   />
 {/if}
-<ConfirmationModal
-  bind:showModal={showDeleteHistoryModal}
-  title="Excluir do Histórico"
-  message={historyBillToDelete ? `Tem certeza que deseja excluir o registro de pagamento da conta "${historyBillToDelete.name}"?` : ''}
-  on:confirm={handleDeleteHistoryConfirmed}
-  on:cancel={handleDeleteHistoryCancelled}
-/>
-<EditHistoryModal
-  showModal={showEditHistoryModal}
-  bill={historyBillToEdit}
-  on:close={closeEditHistoryModal}
-  on:save={handleHistoryBillSaved}
-/>
 <AddRecurringBillModal
   bind:showModal={showAddRecurringBillModal}
   on:save={handleRecurringBillSave}

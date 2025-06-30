@@ -8,7 +8,7 @@
 	export let showModal: boolean = false;
 	export let debtToEdit: Debt | null = null;
 	export let onClose: () => void;
-	export let onDebtSaved: () => void;
+	export let onDebtSaved: (event?: { detail: { debt: Debt } }) => void;
 
 	// Form fields
 	let name: string = '';
@@ -21,6 +21,7 @@
 	let totalInstallments: number | null = null;
 	let installmentsPaid: number | null = 0;
 	let paymentDueDate: number | null = null;
+	let lateFeeAmount: number | null = null;
 
 	let errorMessage: string = '';
 	let title = 'Adicionar Nova Dívida';
@@ -41,6 +42,7 @@
 			totalInstallments = debtToEdit.totalInstallments ?? null;
 			installmentsPaid = debtToEdit.installmentsPaid ?? 0;
 			paymentDueDate = debtToEdit.paymentDueDate ?? null;
+			lateFeeAmount = debtToEdit.lateFeeAmount ?? null;
 		} else {
 			// When opening for a new debt, reset the form
 			resetForm();
@@ -69,7 +71,20 @@
 		// Save the debt first in its own try/catch block
 		let savedDebt: Debt;
 		try {
-			const debtData = { name, lender, totalBalance, interestRate: interestRate ?? undefined, priority, category, paymentAmount: paymentAmount ?? undefined, totalInstallments: totalInstallments ?? undefined, installmentsPaid: installmentsPaid ?? 0, paymentDueDate: paymentDueDate ?? undefined, isArchived: false };
+			const debtData = {
+				name,
+				lender,
+				totalBalance,
+				interestRate: interestRate ?? undefined,
+				priority,
+				category,
+				paymentAmount: paymentAmount ?? undefined,
+				totalInstallments: totalInstallments ?? undefined,
+				installmentsPaid: installmentsPaid ?? 0,
+				paymentDueDate: paymentDueDate ?? undefined,
+				lateFeeAmount: lateFeeAmount ?? undefined,
+				isArchived: false
+			};
 			if (debtToEdit) {
 				await db.debts.update(debtToEdit.id, debtData);
 				savedDebt = { ...debtToEdit, ...debtData };
@@ -82,8 +97,6 @@
 			console.error('CRITICAL: Failed to save DEBT object:', debtError);
 			return; // Stop execution if we can't even save the debt
 		}
-
-		// Remove direct bill-generation logic here
 
 		onDebtSaved({ detail: { debt: savedDebt } });
 		closeModal();
@@ -101,14 +114,15 @@
 		totalInstallments = null;
 		installmentsPaid = 0;
 		paymentDueDate = null;
+		lateFeeAmount = null;
 		errorMessage = '';
 		debtToEdit = null;
 	}
 </script>
 
 {#if showModal}
-<div class="fixed inset-0 z-40 flex items-center justify-center bg-gray-900 bg-opacity-75" on:click={closeModal} role="dialog" aria-modal="true">
-	<div class="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6 shadow-xl" on:click|stopPropagation>
+<div class="fixed inset-0 z-40 flex items-center justify-center bg-gray-900 bg-opacity-75" on:click={closeModal} role="dialog" aria-modal="true" tabindex="0" on:keydown={(e) => { if (e.key === 'Escape') closeModal(); }}>
+	<div class="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6 shadow-xl" on:click|stopPropagation role="document">
 		<h3 class="text-xl font-semibold text-gray-800">{title}</h3>
 		<form on:submit|preventDefault={handleSaveDebt} class="mt-4 space-y-4">
 			<!-- Form fields remain the same -->
@@ -161,6 +175,10 @@
 						<input type="number" id="installments-paid" bind:value={installmentsPaid} class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm" placeholder="0" min="0" />
 					</div>
 				</div>
+			</div>
+			<div>
+				<label for="late-fee-amount" class="block text-sm font-medium text-gray-700">Multa por Atraso (R$) <span class="text-gray-400 font-normal">(opcional)</span></label>
+				<input type="number" id="late-fee-amount" bind:value={lateFeeAmount} class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="0.00" step="0.01" min="0" />
 			</div>
 
 			{#if errorMessage} <p class="text-sm text-red-600">{errorMessage}</p> {/if}

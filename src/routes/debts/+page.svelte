@@ -49,7 +49,8 @@
 		debtToEdit = null;
 	}
 
-	async function handleDebtSaved(event?: CustomEvent) {
+	// Update handler to accept the event with detail.debt
+	async function handleDebtSaved(event?: { detail: { debt: Debt } }) {
 		// Called after a debt is saved (created or edited)
 		console.log('Debt was saved. The list has been updated.');
 		// If a new debt with installments was just created, generate bills for it
@@ -108,7 +109,7 @@
 		<div class="space-y-4">
 			{#if $debts && $debts.length > 0}
 				{#each $debts as debt (debt.id)}
-					<div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow">
+					<div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow">
 						{#if debt.category}
 							<div class="flex items-center gap-2 px-4 py-1 text-left font-semibold text-white {getCategoryColor(debt.category)}">
 								{#if debt.priority}
@@ -119,25 +120,21 @@
 								<span>{debt.category}</span>
 							</div>
 						{/if}
-						<div class="p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+						<div class="p-2 flex items-center justify-between gap-2">
 							<div class="flex-1 min-w-0">
-								<div class="flex items-center gap-2 mb-1">
-									<p class="text-lg font-bold text-gray-800 truncate">{debt.name}</p>
-								</div>
-								<div class="pl-7 space-y-1">
-									<p class="text-sm text-gray-600 flex items-center gap-1">Credor: <span class="font-medium">{debt.lender}</span></p>
-									{#if typeof debt.totalInstallments === 'number' && typeof debt.installmentsPaid === 'number'}
-										<p class="text-xs text-blue-600 font-semibold flex items-center gap-1">{debt.totalInstallments - debt.installmentsPaid} parcela{debt.totalInstallments - debt.installmentsPaid === 1 ? '' : 's'} restante{debt.totalInstallments - debt.installmentsPaid === 1 ? '' : 's'}</p>
-									{/if}
-									{#if debt.interestRate}
-										<p class="text-xs text-gray-500 flex items-center gap-1">Juros: {debt.interestRate}% ao ano</p>
-									{/if}
-								</div>
+								<p class="text-base font-bold text-gray-800 truncate">{debt.name}</p>
+								<p class="text-xs text-gray-600 flex items-center gap-1">Credor: <span class="font-medium">{debt.lender}</span></p>
+								{#if typeof debt.totalInstallments === 'number' && typeof debt.installmentsPaid === 'number'}
+									<p class="text-xs text-blue-600 font-semibold flex items-center gap-1">{debt.totalInstallments - debt.installmentsPaid} parcela{debt.totalInstallments - debt.installmentsPaid === 1 ? '' : 's'} restante{debt.totalInstallments - debt.installmentsPaid === 1 ? '' : 's'}</p>
+								{/if}
+								{#if debt.interestRate}
+									<p class="text-xs text-gray-500 flex items-center gap-1">Juros: {debt.interestRate}% ao ano</p>
+								{/if}
 							</div>
-							<div class="flex flex-col items-end gap-2 min-w-[120px]">
-								<p class="text-xl font-bold text-gray-800 flex items-center gap-1">R$ {debt.totalBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+							<div class="flex flex-col items-end min-w-[100px]">
+								<p class="text-lg font-bold text-gray-800 flex items-center gap-1">R$ {debt.totalBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
 								{#if debt.paymentAmount && debt.totalInstallments}
-									<p class="text-sm font-medium text-gray-700 flex items-center gap-1">R$ {debt.paymentAmount.toLocaleString('pt-BR', {minimumFractionDigits: 2})} / mês</p>
+									<p class="text-xs font-medium text-gray-700 flex items-center gap-1">R$ {debt.paymentAmount.toLocaleString('pt-BR', {minimumFractionDigits: 2})} / mês</p>
 								{/if}
 								<div class="flex items-center space-x-2 mt-1">
 									<button on:click={() => openEditModal(debt)} class="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-blue-600" aria-label="Editar Dívida">

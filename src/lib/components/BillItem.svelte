@@ -5,6 +5,7 @@
 	import { ptBR } from 'date-fns/locale';
 	import { db } from '$lib/db';
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 
 	export let bill: Bill & { installmentInfo?: string };
 
@@ -72,50 +73,49 @@
 			}
 		}
 	});
+
+	function handleCardClick(bill: Bill) {
+		goto(`/contas/${bill.id}`);
+	}
 </script>
 
-<div class="overflow-hidden rounded-lg bg-white shadow-sm border border-gray-200 mb-2">
-	<div class="h-4 flex items-center justify-between px-4 {getCategoryColorClass(bill.category)}">
-		<span></span>
-		<span class="text-xs font-semibold text-white">{debtCategory || bill.category}</span>
-	</div>
-	<div class="flex items-center p-4">
-		<div class="flex h-10 w-10 flex-col items-center justify-center rounded-md bg-gray-200 text-gray-700 mr-3">
-			<span class="text-base font-bold">{new Date((bill.paidAt || bill.dueDate) + 'T00:00:00').getDate()}</span>
-			<span class="text-[10px] font-semibold">{new Date((bill.paidAt || bill.dueDate) + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '')}</span>
-		</div>
-		<div class="flex-grow min-w-0">
-			<p class="font-semibold text-gray-800 truncate">{bill.name}</p>
-			<p class="text-gray-500 truncate text-xs">{bill.recipient}</p>
+<div class="overflow-hidden rounded-lg bg-white shadow-sm border border-gray-200 mb-2 cursor-pointer group font-['Nunito_Sans','Nunito Sans',sans-serif] text-[#1F2937] text-xs" on:click={() => handleCardClick(bill)}>
+	<div class="h-1.5 w-full bg-[#10B981] rounded-t-lg"></div>
+	<div class="flex items-center p-2 relative z-10">
+		{#if bill.isPaid}
+			<span class="flex flex-col items-center justify-center h-10 w-10 mr-1">
+				<svg width="24" height="24" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+					<rect x="2" y="2" width="36" height="36" rx="4" stroke="#FFD700" stroke-width="4"/>
+					<path d="M11 20L18 27L30 15" stroke="#FFD700" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+				</svg>
+			</span>
+		{:else}
+			<div class="flex h-10 w-10 flex-col items-center justify-center rounded-md bg-gray-200 text-gray-700 mr-1">
+				<span class="text-base font-bold">{new Date((bill.paidAt || bill.dueDate) + 'T00:00:00').getDate()}</span>
+				<span class="text-[10px] font-semibold">{new Date((bill.paidAt || bill.dueDate) + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '')}</span>
+			</div>
+		{/if}
+		<div class="ml-0 flex-grow min-w-0">
+			<p class="font-semibold text-[#1F2937] truncate">{bill.name || '-'}</p>
+			<p class="text-xs text-[#6B7280]">{bill.isPaid ? `Pago em ${bill.paidAt ? new Date(bill.paidAt).toLocaleDateString('pt-BR') : '-'}` : `Vence em ${new Date(bill.dueDate + 'T00:00:00').toLocaleDateString('pt-BR')}`}</p>
 			{#if bill.installmentInfo}
-				<p class="text-xs text-gray-400">{bill.installmentInfo}</p>
+				<p class="text-gray-500">{bill.installmentInfo}</p>
 			{/if}
 			{#if bill.note}
-				<p class="italic mt-1 text-gray-500">{bill.note}</p>
+				<p class="italic mt-1">{bill.note}</p>
 			{/if}
 		</div>
-		<div class="text-right ml-2">
-			<p class="font-bold text-lg text-gray-800">R$ {(bill.amountPaid ?? bill.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-			{#if bill.lateFee && bill.lateFee > 0}
-				<p class="text-xs {(!bill.isPaid && isPast(new Date(bill.dueDate)) && !isToday(new Date(bill.dueDate))) ? 'text-red-500 font-semibold' : 'text-gray-500'}">
-					Multa: R$ {bill.lateFee.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-				</p>
-			{/if}
-			{#if bill.isPaid}
-				<p class="text-xs text-green-600">Pago em {bill.paidAt ? new Date(bill.paidAt).toLocaleDateString('pt-BR') : '-'}</p>
-				<p class="text-xs text-gray-500">{bill.paymentMethod || '-'}</p>
+		<div class="px-2 text-right">
+			<p class="text-[#1F2937] truncate">R$ {(bill.amountPaid ?? bill.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+			<p class="text-xs text-[#6B7280] font-['Nunito_Sans','Nunito Sans',sans-serif]">{bill.paymentMethod || '-'}</p>
+			{#if bill.installmentInfo}
+				<p class="text-gray-500">{bill.installmentInfo}</p>
 			{/if}
 		</div>
-		<div class="flex flex-col items-end ml-4 gap-1">
+		<div class="flex flex-col items-end ml-2 gap-1" on:click|stopPropagation>
 			{#if !bill.isPaid}
-				<button class="btn btn-xs btn-ghost btn-circle" aria-label="Editar" title="Editar" on:click={editBill}>
-					<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>
-				</button>
 				<button class="btn btn-xs btn-ghost btn-circle" aria-label="Pagar" title="Pagar" on:click={payBill}>
 					<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20"><path d="M4 10a8 8 0 1116 0A8 8 0 014 10zm8-3a1 1 0 100 2 1 1 0 000-2zm-1 4a1 1 0 012 0v2a1 1 0 11-2 0v-2z" /></svg>
-				</button>
-				<button class="btn btn-xs btn-ghost btn-circle" aria-label="Excluir" title="Excluir" on:click={deleteBill}>
-					<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
 				</button>
 			{/if}
 		</div>

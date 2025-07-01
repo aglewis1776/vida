@@ -4,7 +4,11 @@ export default {
   content: ["./src/**/*.{html,js,svelte,ts}"],
 
   theme: {
-    extend: {}
+    extend: {
+      fontFamily: {
+        sans: ["Nunito Sans", "ui-sans-serif", "system-ui", "sans-serif"],
+      },
+    }
   },
 
   plugins: [require("@tailwindcss/typography")]

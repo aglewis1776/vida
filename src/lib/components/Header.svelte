@@ -8,13 +8,12 @@
 </script>
 
 <header
-	class="bg-[#F9FAFB] sticky top-0 z-50 flex items-center justify-between p-4 border-b border-gray-200"
-	style="backdrop-filter:none;background-color:#F9FAFB;"
+	   class="bg-[#F9FAFB] sticky top-0 z-50 flex items-center justify-between border-b border-gray-200"
+	   style="backdrop-filter:none;background-color:#F9FAFB; min-height: 8rem; padding-left: 0.5rem; padding-right: 0.5rem;"
 >
-	<div>
-		<!-- Set 'Na Régua' text color to #10B981, keep size unchanged -->
-		<span class="text-xl font-bold" style="color: #10B981;">Na Régua</span>
-	</div>
+<div class="flex items-center" style="min-width:8rem; min-height:8rem;">
+	<img src="/icons/na_regua_logo.png" alt="Na Régua Logo" style="height:8rem;width:8rem;object-fit:contain;" />
+</div>
 	<div class="text-right">
 		<!-- Set 'Saldo Total' text color to #10B981 -->
 		<span class="text-lg font-bold" style="color: #10B981;">Saldo Total</span>

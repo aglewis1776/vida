@@ -8,11 +8,12 @@
 </script>
 
 <header
-	class="bg-[#F9FAFB] sticky top-0 z-10 flex items-center justify-between p-4 border-b border-gray-200"
+	class="bg-[#F9FAFB] sticky top-0 z-50 flex items-center justify-between p-4 border-b border-gray-200"
+	style="backdrop-filter:none;background-color:#F9FAFB;"
 >
 	<div>
-		<!-- Set 'Vida Financeira' text color to #10B981, keep size unchanged -->
-		<span class="text-xl font-bold" style="color: #10B981;">Vida Financeira</span>
+		<!-- Set 'Na Régua' text color to #10B981, keep size unchanged -->
+		<span class="text-xl font-bold" style="color: #10B981;">Na Régua</span>
 	</div>
 	<div class="text-right">
 		<!-- Set 'Saldo Total' text color to #10B981 -->

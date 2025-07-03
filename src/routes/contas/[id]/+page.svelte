@@ -4,10 +4,13 @@
 	import { goto } from '$app/navigation';
 	import type { Bill } from '$lib/types';
 	import ConfirmationModal from '$lib/components/ConfirmationModal.svelte';
+	import PayBillModal from '$lib/components/PayBillModal.svelte';
 
 	let bill: Bill | null = null;
 	let loading = true;
 	let showDeleteModal = false;
+	let showPayModal = false;
+	let paymentError: string | null = null;
 
 	// Use $: to reactively get the id from $page
 	$: id = $page.params.id;
@@ -58,6 +61,41 @@
 	function handleDeleteCancel() {
 		showDeleteModal = false;
 	}
+
+	function openPayModal() {
+		showPayModal = true;
+	}
+	function closePayModal() {
+		showPayModal = false;
+	}
+	async function handleBillPaid(event: CustomEvent) {
+		// You may want to reuse the logic from the main page
+		const { bill: paidBill, paymentMethod, amount, date, note } = event.detail;
+		if (!bill) return;
+		await db.bills.update(bill.id, {
+			isPaid: true,
+			paidAt: date,
+			paymentMethod,
+			amountPaid: amount,
+			note
+		});
+		bill = { ...bill, isPaid: true, paidAt: date, paymentMethod, amountPaid: amount, note };
+		showPayModal = false;
+	}
+
+	// async function handlePay() {
+	// 	if (!bill) return;
+	// 	// You can expand this logic to show a modal or process payment inline
+	// 	// For now, mark as paid with today's date and a placeholder method
+	// 	const today = new Date();
+	// 	await db.bills.update(bill.id, {
+	// 		isPaid: true,
+	// 		paidAt: today.toISOString().split('T')[0],
+	// 		paymentMethod: 'Manual',
+	// 		amountPaid: bill.amount
+	// 	});
+	// 	bill = { ...bill, isPaid: true, paidAt: today.toISOString().split('T')[0], paymentMethod: 'Manual', amountPaid: bill.amount };
+	// }
 </script>
 
 <div class="min-h-screen bg-slate-50">
@@ -167,6 +205,16 @@
 				</div>
 
 				<div class="mt-2 flex justify-center gap-2">
+					{#if !bill.isPaid}
+						<button
+							class="flex items-center gap-1 rounded bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-200 transition"
+							on:click={openPayModal}
+							title="Pagar conta"
+						>
+							<svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01" /></svg>
+							Pagar
+						</button>
+					{/if}
 					<button
 						class="flex items-center gap-1 rounded bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-200 transition"
 						on:click={() => {/* TODO: implement edit modal */}}
@@ -208,6 +256,16 @@
 				message="Tem certeza que deseja excluir esta conta? Esta ação não pode ser desfeita."
 				on:confirm={handleDeleteConfirm}
 				on:cancel={handleDeleteCancel}
+			/>
+		{/if}
+
+		{#if showPayModal && bill}
+			<PayBillModal
+				bind:showModal={showPayModal}
+				bill={bill}
+				paymentError={paymentError}
+				on:close={closePayModal}
+				on:pay={handleBillPaid}
 			/>
 		{/if}
 	</div>
